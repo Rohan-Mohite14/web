@@ -70,19 +70,45 @@ Future<Map<String, Set<String>>> _generateElementTagMap() async {
 
 Future<TranslationResult> generateBindings(
     String packageRoot, String librarySubDir,
-    {required bool generateAll}) async {
+    {required bool generateAll, Set<String>? specificFiles}) async {
   final cssStyleDeclarations = await _generateCSSStyleDeclarations();
   final elementHTMLMap = await _generateElementTagMap();
   final translator = Translator(
       packageRoot, librarySubDir, cssStyleDeclarations, elementHTMLMap,
       generateAll: generateAll);
+
   final array = objectEntries(await idl.parseAll().toDart);
+  final Set<String> processedFiles = {};
+
+  // First pass: Process explicitly filtered files.
   for (var i = 0; i < array.length; i++) {
     final entry = array[i] as JSArray<JSAny?>;
     final shortname = (entry[0] as JSString).toDart;
-    final ast = entry[1] as JSArray<webidl.Node>;
-    translator.collect(shortname, ast);
+    if (specificFiles == null || specificFiles.contains(shortname)) {
+      final ast = entry[1] as JSArray<webidl.Node>;
+      translator.collect(shortname, ast);
+      processedFiles.add(shortname);
+    }
   }
+
+  // Second pass: Process files that are missing from dependencies.
+  for (final missing in translator.missingFiles) {
+    // Only process if not already processed.
+    if (!processedFiles.contains(missing)) {
+      // Look up the missing file in the full array.
+      for (var i = 0; i < array.length; i++) {
+        final entry = array[i] as JSArray<JSAny?>;
+        final shortname = (entry[0] as JSString).toDart;
+        if (shortname == missing) {
+          final ast = entry[1] as JSArray<webidl.Node>;
+          translator.collect(shortname, ast);
+          processedFiles.add(shortname);
+          break;
+        }
+      }
+    }
+  }
+
   translator.addInterfacesAndNamespaces();
   return translator.translate();
 }

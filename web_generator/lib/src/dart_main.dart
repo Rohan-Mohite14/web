@@ -24,30 +24,40 @@ void main(List<String> args) async {
   if (languageVersionString.isEmpty) {
     languageVersionString = DartFormatter.latestLanguageVersion.toString();
   }
-  final ArgResults argResult;
-  argResult = _parser.parse(args);
+  final ArgResults argResult = _parser.parse(args);
+
+  // New: Parse the 'files' option.
+  final filesOption = argResult['files'] as String?;
+  Set<String>? specificFiles;
+  if (filesOption != null && filesOption.isNotEmpty) {
+    specificFiles = filesOption.split(',').map((s) => s.trim()).toSet();
+  }
+
   await _generateAndWriteBindings(
     outputDirectory: argResult['output-directory'] as String,
     generateAll: argResult['generate-all'] as bool,
     languageVersion: Version.parse(languageVersionString),
+    specificFiles: specificFiles, // pass the files set
   );
 }
+
 
 Future<void> _generateAndWriteBindings({
   required String outputDirectory,
   required bool generateAll,
   required Version languageVersion,
+  Set<String>? specificFiles, // new parameter
 }) async {
   const librarySubDir = 'dom';
-
   ensureDirectoryExists('$outputDirectory/$librarySubDir');
 
+  // Pass specificFiles to generateBindings.
   final bindings = await generateBindings(packageRoot, librarySubDir,
-      generateAll: generateAll);
+      generateAll: generateAll, specificFiles: specificFiles);
+
   for (var entry in bindings.entries) {
     final libraryPath = entry.key;
     final library = entry.value;
-
     final contents = _emitLibrary(library, languageVersion).toJS;
     fs.writeFileSync('$outputDirectory/$libraryPath'.toJS, contents);
   }
@@ -71,4 +81,6 @@ final _parser = ArgParser()
   ..addFlag('generate-all',
       negatable: false,
       help: 'Generate bindings for all IDL definitions, including experimental '
-          'and non-standard APIs.');
+          'and non-standard APIs.')
+  ..addOption('files',
+      help: 'Comma-separated list of IDL file names to generate bindings for.');

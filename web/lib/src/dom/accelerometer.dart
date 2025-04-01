@@ -15,15 +15,10 @@ library;
 
 import 'dart:js_interop';
 
-import 'generic_sensor.dart';
-
 typedef AccelerometerLocalCoordinateSystem = String;
-extension type AccelerometerSensorOptions._(JSObject _)
-    implements SensorOptions, JSObject {
-  external factory AccelerometerSensorOptions({
-    num frequency,
-    AccelerometerLocalCoordinateSystem referenceFrame,
-  });
+extension type AccelerometerSensorOptions._(JSObject _) implements JSObject {
+  external factory AccelerometerSensorOptions(
+      {AccelerometerLocalCoordinateSystem referenceFrame});
 
   external AccelerometerLocalCoordinateSystem get referenceFrame;
   external set referenceFrame(AccelerometerLocalCoordinateSystem value);
@@ -45,8 +40,7 @@ extension type AccelerometerSensorOptions._(JSObject _)
 ///
 /// API documentation sourced from
 /// [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/LinearAccelerationSensor).
-extension type LinearAccelerationSensor._(JSObject _)
-    implements Sensor, JSObject {
+extension type LinearAccelerationSensor._(JSObject _) implements JSObject {
   external factory LinearAccelerationSensor(
       [AccelerometerSensorOptions options]);
 }
@@ -67,6 +61,6 @@ extension type LinearAccelerationSensor._(JSObject _)
 ///
 /// API documentation sourced from
 /// [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/GravitySensor).
-extension type GravitySensor._(JSObject _) implements Sensor, JSObject {
+extension type GravitySensor._(JSObject _) implements JSObject {
   external factory GravitySensor([AccelerometerSensorOptions options]);
 }

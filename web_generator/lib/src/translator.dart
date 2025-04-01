@@ -230,9 +230,13 @@ _RawType _getRawType(idl.IDLType idlType) {
   // `undefined`, it can be nullable for our purposes.
   if (type == 'any') nullable = true;
   final translator = Translator.instance!;
-  final decl = translator._typeToDeclaration[type];
-  final alias = idlOrBuiltinToJsTypeAliases[type];
-  assert(decl != null || alias != null);
+  final decl = translator._typeToDeclaration[type]; 
+final alias = idlOrBuiltinToJsTypeAliases[type]; 
+if (decl == null && alias == null) { 
+  print("Warning: No declaration or alias found for type '$type'. Using fallback 'JSObject'."); 
+  return _RawType('JSObject', nullable, typeParameter); 
+}
+
   if (alias == null && !translator.markTypeAsUsed(type)) {
     // If the type is an IDL type that is never generated, use its JS type
     // equivalent.
@@ -577,20 +581,29 @@ class _PartialInterfacelike {
 
   /// Given the [declaredInheritance] by the IDL, find the closest supertype
   /// that is actually generated, and set the inheritance equal to that type.
-  void _setInheritance(String? declaredInheritance) {
-    if (declaredInheritance == null) return;
-    final translator = Translator.instance!;
-    while (declaredInheritance != null) {
-      if (translator.markTypeAsUsed(declaredInheritance)) {
-        inheritance = declaredInheritance;
-        break;
-      } else {
-        declaredInheritance = (translator
-                ._typeToDeclaration[declaredInheritance] as idl.Interfacelike)
-            .inheritance;
-      }
-    }
-  }
+  void _setInheritance(String? declaredInheritance) { 
+  if (declaredInheritance == null) return; 
+  final translator = Translator.instance!; 
+  while (declaredInheritance != null) { 
+    if (translator.markTypeAsUsed(declaredInheritance)) { 
+      inheritance = declaredInheritance; 
+      break; 
+    } else { 
+      final decl = translator._typeToDeclaration[declaredInheritance]; 
+      if (decl == null) { 
+        print('Warning: No declaration found for $declaredInheritance'); 
+        break; 
+      } 
+      // Only proceed if the declaration is indeed an Interfacelike. 
+      if (decl is idl.Interfacelike) { 
+        declaredInheritance = decl.inheritance; 
+      } else { 
+        break; 
+      } 
+    } 
+  } 
+}
+
 
   /// Given a [memberName] and whether it [isStatic], return whether it is a
   /// member that should be emitted according to the compat data.
@@ -653,6 +666,10 @@ class Translator {
   final String _librarySubDir;
   final List<String> _cssStyleDeclarations;
   final Map<String, Set<String>> _elementTagMap;
+  final Set<String> _missingFiles = {};
+
+  // Add a getter:
+  Set<String> get missingFiles => _missingFiles;
 
   final _libraries = <String, _Library>{};
   final _typeToDeclaration = <String, idl.Node>{};
@@ -728,25 +745,38 @@ class Translator {
   ///
   /// Mixins are applied by applying the mixin interface first and then its
   /// partial interfaces.
-  void _combineInterfacelikes(String interfacelikeName) {
-    final decl = _typeToDeclaration[interfacelikeName]! as idl.Interfacelike;
-    for (final interfacelike in [
-      decl,
-      ...?_typeToPartials[interfacelikeName]
-    ]) {
-      _addOrUpdateInterfaceLike(interfacelike);
-    }
-    final mixins = _includes[interfacelikeName];
-    if (mixins == null) return;
-    for (final mixin in mixins) {
-      for (final interfacelike in [
-        _typeToDeclaration[mixin] as idl.Interfacelike,
-        ...?_typeToPartials[mixin]
-      ]) {
-        _interfacelikes[interfacelikeName]!.update(interfacelike);
-      }
-    }
-  }
+  void _combineInterfacelikes(String interfacelikeName) { 
+  final decl = _typeToDeclaration[interfacelikeName]; 
+  if (decl == null) { 
+    print("Warning: No declaration found for interfacelike '$interfacelikeName'"); 
+    return; 
+  } 
+  final interfacelikeDecl = decl as idl.Interfacelike; 
+  // Process the main declaration and any partials 
+  for (final interfacelike in [ 
+    interfacelikeDecl, 
+    ...?_typeToPartials[interfacelikeName] 
+  ]) { 
+    _addOrUpdateInterfaceLike(interfacelike); 
+  } 
+  // Process mixins if they exist 
+  final mixins = _includes[interfacelikeName]; 
+  if (mixins == null) return; 
+  for (final mixin in mixins) { 
+    final mixinDecl = _typeToDeclaration[mixin]; 
+    if (mixinDecl == null) { 
+      print("Warning: No declaration found for mixin '$mixin' used in '$interfacelikeName'"); 
+      continue; 
+    } 
+    for (final interfacelike in [ 
+      mixinDecl as idl.Interfacelike, 
+      ...?_typeToPartials[mixin] 
+    ]) { 
+      _interfacelikes[interfacelikeName]?.update(interfacelike); 
+    } 
+  } 
+}
+
 
   /// Given a [type] that corresponds to an IDL type, marks it as a used type,
   /// processes the type if needed, and marks any types its declaration uses.
@@ -761,56 +791,68 @@ class Translator {
   ///
   /// Returns whether the type has been or will be marked as used.
   bool markTypeAsUsed(String type) {
-    final decl = _typeToDeclaration[type];
-    if (decl == null) return false;
-    if (_usedTypes.contains(decl)) return true;
-    switch (decl.type) {
-      case 'dictionary':
-        final name = (decl as idl.Interfacelike).name;
+  final decl = _typeToDeclaration[type];
+
+  if (decl == null) {
+    // If the type is missing, record it and return false.
+    _missingFiles.add(type);
+    return false;
+  }
+
+  if (_usedTypes.contains(decl)) return true;
+
+  switch (decl.type) {
+    case 'dictionary':
+      final name = (decl as idl.Interfacelike).name;
+      _usedTypes.add(decl);
+      _combineInterfacelikes(name);
+      return true;
+
+    case 'typedef':
+      _usedTypes.add(decl);
+      final desugaredType = _desugarTypedef(_RawType(type, false))?.type;
+      if (desugaredType != null) {
+        markTypeAsUsed(desugaredType);
+      }
+      return true;
+
+    case 'enum':
+    case 'callback interface':
+    case 'callback':
+      _usedTypes.add(decl);
+      return true;
+
+    case 'interface':
+      // Interfaces and namespaces can only be marked as used depending on their compat data.
+      final name = (decl as idl.Interfacelike).name;
+      if (browserCompatData.shouldGenerateInterface(name)) {
         _usedTypes.add(decl);
         _combineInterfacelikes(name);
         return true;
-      case 'typedef':
+      }
+      return false;
+
+    case 'namespace':
+      // Browser compat data doesn't document namespaces that only contain constants.
+      final namespace = decl as idl.Interfacelike;
+      final name = namespace.name;
+      if (browserCompatData.shouldGenerateInterface(name) ||
+          namespace.members.toDart.every((member) => member.type == 'const')) {
         _usedTypes.add(decl);
-        final desugaredType = _desugarTypedef(_RawType(type, false))!.type;
-        markTypeAsUsed(desugaredType);
+        _combineInterfacelikes(name);
         return true;
-      case 'enum':
-      case 'callback interface':
-      case 'callback':
-        _usedTypes.add(decl);
-        return true;
-      case 'interface':
-        // Interfaces and namespaces can only be marked as used depending on
-        // their compat data.
-        final name = (decl as idl.Interfacelike).name;
-        if (browserCompatData.shouldGenerateInterface(name)) {
-          _usedTypes.add(decl);
-          _combineInterfacelikes(name);
-          return true;
-        }
-        return false;
-      case 'namespace':
-        // Browser compat data doesn't document namespaces that only contain
-        // constants.
-        // https://github.com/mdn/browser-compat-data/blob/main/docs/data-guidelines/api.md#namespaces
-        final namespace = decl as idl.Interfacelike;
-        final name = namespace.name;
-        if (browserCompatData.shouldGenerateInterface(name) ||
-            namespace.members.toDart
-                .every((member) => member.type == 'const')) {
-          _usedTypes.add(decl);
-          _combineInterfacelikes(name);
-          return true;
-        }
-        return false;
-      case 'interface mixin':
+      }
+      return false;
+
+    case 'interface mixin':
       // Mixins should never appear as types.
-      default:
-        throw Exception(
-            'Unexpected node type to be marked as used: ${decl.type}');
-    }
+      return false;
+
+    default:
+      throw Exception('Unexpected node type to be marked as used: ${decl.type}');
   }
+}
+
 
   void collect(String shortName, JSArray<idl.Node> ast) {
     final libraryPath = '$_librarySubDir/${shortName.kebabToSnake}.dart';

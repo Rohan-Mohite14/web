@@ -82,12 +82,14 @@ $_usage''');
 
   // Run app with `node`.
   final generateAll = argResult['generate-all'] as bool;
+  final filesOption = argResult['files'] as String?;
   await _runProc(
     'node',
     [
       'main.mjs',
       '--output-directory=${p.join(_webPackagePath, 'lib', 'src')}',
       if (generateAll) '--generate-all',
+      if (filesOption != null && filesOption.isNotEmpty) '--files=$filesOption',
     ],
     workingDirectory: _bindingsGeneratorPath,
   );
@@ -263,4 +265,6 @@ final _parser = ArgParser()
   ..addFlag('generate-all',
       negatable: false,
       help: 'Generate bindings for all IDL definitions, including experimental '
-          'and non-standard APIs.');
+          'and non-standard APIs.')
+  ..addOption('files',
+      help: 'Comma-separated list of IDL definitions to generate bindings for');

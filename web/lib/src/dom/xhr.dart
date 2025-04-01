@@ -15,9 +15,6 @@ library;
 
 import 'dart:js_interop';
 
-import 'dom.dart';
-import 'html.dart';
-
 typedef FormDataEntryValue = JSAny;
 typedef XMLHttpRequestResponseType = String;
 
@@ -33,22 +30,21 @@ typedef XMLHttpRequestResponseType = String;
 ///
 /// API documentation sourced from
 /// [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequestEventTarget).
-extension type XMLHttpRequestEventTarget._(JSObject _)
-    implements EventTarget, JSObject {
-  external EventHandler get onloadstart;
-  external set onloadstart(EventHandler value);
-  external EventHandler get onprogress;
-  external set onprogress(EventHandler value);
-  external EventHandler get onabort;
-  external set onabort(EventHandler value);
-  external EventHandler get onerror;
-  external set onerror(EventHandler value);
-  external EventHandler get onload;
-  external set onload(EventHandler value);
-  external EventHandler get ontimeout;
-  external set ontimeout(EventHandler value);
-  external EventHandler get onloadend;
-  external set onloadend(EventHandler value);
+extension type XMLHttpRequestEventTarget._(JSObject _) implements JSObject {
+  external JSObject get onloadstart;
+  external set onloadstart(JSObject value);
+  external JSObject get onprogress;
+  external set onprogress(JSObject value);
+  external JSObject get onabort;
+  external set onabort(JSObject value);
+  external JSObject get onerror;
+  external set onerror(JSObject value);
+  external JSObject get onload;
+  external set onload(JSObject value);
+  external JSObject get ontimeout;
+  external set ontimeout(JSObject value);
+  external JSObject get onloadend;
+  external set onloadend(JSObject value);
 }
 
 /// @AvailableInWorkers("window_and_worker_except_service")
@@ -177,7 +173,7 @@ extension type XMLHttpRequest._(JSObject _)
   /// If no `Accept` header has been set using the
   /// [XMLHttpRequest.setRequestHeader], an
   /// `Accept` header with the type `"*/*"` (any type) is sent.
-  external void send([JSAny? body]);
+  external void send([JSObject? body]);
 
   /// @AvailableInWorkers("window_and_worker_except_service")
   ///
@@ -244,8 +240,8 @@ extension type XMLHttpRequest._(JSObject _)
   /// it
   /// as such. This method must be called before calling [XMLHttpRequest.send].
   external void overrideMimeType(String mime);
-  external EventHandler get onreadystatechange;
-  external set onreadystatechange(EventHandler value);
+  external JSObject get onreadystatechange;
+  external set onreadystatechange(JSObject value);
 
   /// @AvailableInWorkers("window_and_worker_except_service")
   ///
@@ -495,7 +491,7 @@ extension type XMLHttpRequest._(JSObject _)
   /// [XMLHttpRequest.overrideMimeType] to parse it as XML anyway.
   ///
   /// This property isn't available to workers.
-  external Document? get responseXML;
+  external JSObject? get responseXML;
 }
 
 /// The **`FormData`** interface provides a way to construct a set of key/value
@@ -518,8 +514,8 @@ extension type XMLHttpRequest._(JSObject _)
 /// [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/FormData).
 extension type FormData._(JSObject _) implements JSObject {
   external factory FormData([
-    HTMLFormElement form,
-    HTMLElement? submitter,
+    JSObject form,
+    JSObject? submitter,
   ]);
 
   /// The **`append()`** method of the [FormData] interface appends a new value
@@ -579,7 +575,7 @@ extension type FormData._(JSObject _) implements JSObject {
 ///
 /// API documentation sourced from
 /// [MDN Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/ProgressEvent).
-extension type ProgressEvent._(JSObject _) implements Event, JSObject {
+extension type ProgressEvent._(JSObject _) implements JSObject {
   external factory ProgressEvent(
     String type, [
     ProgressEventInit eventInitDict,
@@ -619,11 +615,8 @@ extension type ProgressEvent._(JSObject _) implements Event, JSObject {
   /// property is `false`, this value is meaningless and should be ignored.
   external int get total;
 }
-extension type ProgressEventInit._(JSObject _) implements EventInit, JSObject {
+extension type ProgressEventInit._(JSObject _) implements JSObject {
   external factory ProgressEventInit({
-    bool bubbles,
-    bool cancelable,
-    bool composed,
     bool lengthComputable,
     int loaded,
     int total,
